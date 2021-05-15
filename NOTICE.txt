@@ -1,0 +1,4 @@
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+Specifically, this code is adapted from the TPC-H benchmark code in the Apache Arrow DataFusion benchmark utility.

@@ -1,15 +1,26 @@
-use std::fs;
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use std::io::Result;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::thread;
-use std::time::Instant;
+use std::path::PathBuf;
 
 use structopt::StructOpt;
 
+use tpctools::tpcds::TpcDs;
+use tpctools::tpch::TpcH;
+use tpctools::Tpc;
+
 #[derive(Debug, StructOpt)]
-#[structopt(name = "tpctools", about = "Tools for generating TPC data sets.")]
-struct Opt {
+struct GenerateOpt {
     /// TPC benchmark to use (tpcds or tpch)
     #[structopt(short, long)]
     benchmark: String,
@@ -31,245 +42,82 @@ struct Opt {
     output: PathBuf,
 }
 
-fn main() -> Result<()> {
-    let opt = Opt::from_args();
-    println!("{:?}", opt);
+#[derive(Debug, StructOpt)]
+struct ConvertOpt {
+    /// TPC benchmark to use (tpcds or tpch)
+    #[structopt(short, long)]
+    benchmark: String,
 
-    let scale = opt.scale;
-    let partitions = opt.partitions;
-    let generator_path = opt.generator_path.as_path().to_str().unwrap().to_string();
-    let output_path_str = opt.output.as_path().to_str().unwrap().to_string();
+    /// Path to csv files
+    #[structopt(parse(from_os_str), required = true, short = "i", long = "input")]
+    input_path: PathBuf,
 
-    let gen: Box<dyn Tpc> = match opt.benchmark.as_str() {
-        "tpcds" => Box::new(TpcDs::new(
-            scale,
-            partitions,
-            generator_path,
-            output_path_str,
-        )),
-        "tpch" => Box::new(TpcH::new(
-            scale,
-            partitions,
-            generator_path,
-            output_path_str,
-        )),
-        _ => panic!(),
-    };
+    /// Output path
+    #[structopt(parse(from_os_str), required = true, short = "o", long = "output")]
+    output_path: PathBuf,
 
-    gen.generate()?;
+    /// Output file format: `csv` or `parquet`
+    #[structopt(short = "f", long = "format")]
+    file_format: String,
+
+    /// Compression to use when writing Parquet files
+    #[structopt(short = "c", long = "compression", default_value = "snappy")]
+    compression: String,
+
+    /// Number of partitions to produce
+    #[structopt(short = "p", long = "partitions", default_value = "1")]
+    partitions: usize,
+
+    /// Batch size when reading CSV or Parquet files
+    #[structopt(short = "s", long = "batch-size", default_value = "8192")]
+    batch_size: usize,
+}
+
+#[derive(Debug, StructOpt)]
+#[structopt(
+    name = "tpctools",
+    about = "Tools for generating and converting TPC data sets."
+)]
+enum Opt {
+    Generate(GenerateOpt),
+    Convert(ConvertOpt),
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    match Opt::from_args() {
+        Opt::Generate(opt) => {
+            let scale = opt.scale;
+            let partitions = opt.partitions;
+            let generator_path = opt.generator_path.as_path().to_str().unwrap().to_string();
+            let output_path_str = opt.output.as_path().to_str().unwrap().to_string();
+
+            let tpc: Box<dyn Tpc> = match opt.benchmark.as_str() {
+                "tpcds" => Box::new(TpcDs::new()),
+                "tpch" => Box::new(TpcH::new()),
+                _ => panic!(),
+            };
+
+            tpc.generate(scale, partitions, &generator_path, &output_path_str)?;
+        }
+        Opt::Convert(opt) => {
+            let tpc: Box<dyn Tpc> = match opt.benchmark.as_str() {
+                "tpcds" => Box::new(TpcDs::new()),
+                "tpch" => Box::new(TpcH::new()),
+                _ => panic!(),
+            };
+            match tpc
+                .convert_to_parquet(
+                    opt.input_path.as_path().to_str().unwrap(),
+                    opt.output_path.as_path().to_str().unwrap(),
+                )
+                .await
+            {
+                Ok(_) => {}
+                Err(e) => println!("{:?}", e),
+            }
+        }
+    }
 
     Ok(())
-}
-
-trait Tpc {
-    fn generate(&self) -> Result<()>;
-}
-
-struct TpcDs {
-    scale: usize,
-    partitions: usize,
-    generator_path: String,
-    output_path_str: String,
-}
-
-impl TpcDs {
-    fn new(
-        scale: usize,
-        partitions: usize,
-        generator_path: String,
-        output_path_str: String,
-    ) -> Self {
-        Self {
-            scale,
-            partitions,
-            generator_path,
-            output_path_str,
-        }
-    }
-}
-
-impl Tpc for TpcDs {
-    fn generate(&self) -> Result<()> {
-        let mut handles = vec![];
-
-        let start = Instant::now();
-
-        for i in 1..=self.partitions {
-            let generator_path = self.generator_path.clone();
-            let output_path_str = self.output_path_str.clone();
-            let scale = self.scale;
-            let partitions = self.partitions;
-            handles.push(thread::spawn(move || {
-                let output = Command::new("./dsdgen")
-                    .current_dir(generator_path)
-                    .arg("-FORCE")
-                    .arg("-DIR")
-                    .arg(output_path_str)
-                    .arg("-SCALE")
-                    .arg(format!("{}", scale))
-                    .arg("-CHILD")
-                    .arg(format!("{}", i))
-                    .arg("-PARALLEL")
-                    .arg(format!("{}", partitions))
-                    .output()
-                    .expect("failed to generate data");
-
-                println!("{:?}", output);
-            }));
-        }
-
-        // wait for all threads to finish
-        for h in handles {
-            h.join().unwrap();
-        }
-
-        let duration = start.elapsed();
-
-        println!(
-            "Generated TPC-DS data at scale factor {} with {} partitions in: {:?}",
-            self.scale, self.partitions, duration
-        );
-
-        let tables = [
-            "call_center",
-            "catalog_page",
-            "catalog_sales",
-            "catalog_returns",
-            "customer",
-            "customer_address",
-            "customer_demographics",
-            "date_dim",
-            "income_band",
-            "household_demographics",
-            "inventory",
-            "store",
-            "ship_mode",
-            "reason",
-            "promotion",
-            "item",
-            "store_sales",
-            "store_returns",
-            "web_page",
-            "warehouse",
-            "time_dim",
-            "web_site",
-            "web_sales",
-            "web_returns",
-        ];
-
-        for table in &tables {
-            let output_dir = format!("{}/{}", self.output_path_str, table);
-            if !Path::new(&output_dir).exists() {
-                println!("Creating directory {}", output_dir);
-                fs::create_dir(&output_dir)?;
-            }
-            for i in 1..=self.partitions {
-                let filename = format!(
-                    "{}/{}_{}_{}.dat",
-                    self.output_path_str, table, i, self.partitions
-                );
-                let filename2 = format!("{}/part-{}.dat", output_dir, i);
-                if Path::new(&filename).exists() {
-                    println!("mv {} {}", filename, filename2);
-                    fs::rename(filename, filename2)?;
-                }
-            }
-        }
-
-        Ok(())
-    }
-}
-
-struct TpcH {
-    scale: usize,
-    partitions: usize,
-    generator_path: String,
-    output_path_str: String,
-}
-
-impl TpcH {
-    fn new(
-        scale: usize,
-        partitions: usize,
-        generator_path: String,
-        output_path_str: String,
-    ) -> Self {
-        Self {
-            scale,
-            partitions,
-            generator_path,
-            output_path_str,
-        }
-    }
-}
-
-impl Tpc for TpcH {
-    fn generate(&self) -> Result<()> {
-        let mut handles = vec![];
-
-        let start = Instant::now();
-
-        for i in 1..=self.partitions {
-            let generator_path = self.generator_path.clone();
-            let scale = self.scale;
-            let partitions = self.partitions;
-            handles.push(thread::spawn(move || {
-                let output = Command::new("./dbgen")
-                    .current_dir(generator_path)
-                    .arg("-f")
-                    .arg("-s")
-                    .arg(format!("{}", scale))
-                    .arg("-C")
-                    .arg(format!("{}", partitions))
-                    .arg("-S")
-                    .arg(format!("{}", i))
-                    .output()
-                    .expect("failed to generate data");
-
-                println!("{:?}", output);
-            }));
-        }
-
-        // wait for all threads to finish
-        for h in handles {
-            h.join().unwrap();
-        }
-
-        let duration = start.elapsed();
-
-        println!(
-            "Generated TPC-H data at scale factor {} with {} partitions in: {:?}",
-            self.scale, self.partitions, duration
-        );
-
-        let tables = [
-            "customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier",
-        ];
-
-        for table in &tables {
-            let output_dir = format!("{}/{}", self.output_path_str, table);
-            if !Path::new(&output_dir).exists() {
-                println!("Creating directory {}", output_dir);
-                fs::create_dir(&output_dir)?;
-            }
-
-            let filename = format!("{}/{}.tbl", self.generator_path, table);
-            let filename2 = format!("{}/part-0.dat", output_dir);
-            if Path::new(&filename).exists() {
-                println!("mv {} {}", filename, filename2);
-                fs::rename(filename, filename2)?;
-            }
-
-            for i in 1..=self.partitions {
-                let filename = format!("{}/{}.tbl.{}", self.generator_path, table, i);
-                let filename2 = format!("{}/part-{}.dat", output_dir, i);
-                if Path::new(&filename).exists() {
-                    println!("mv {} {}", filename, filename2);
-                    fs::rename(filename, filename2)?;
-                }
-            }
-        }
-
-        Ok(())
-    }
 }

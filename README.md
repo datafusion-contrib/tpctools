@@ -14,7 +14,7 @@ git clone https://github.com/databricks/tpcds-kit.git
 Generate data.
 
 ```bash
-cargo run --release -- --benchmark tpcds --scale 1000 --partitions 48 --generator_path ~/git/tpcds-kit/tools/ --output /mnt/bigdata/tpcds/tbl-sf1000/
+cargo run --release -- generate --benchmark tpcds --scale 1000 --partitions 48 --generator_path ~/git/tpcds-kit/tools/ --output /mnt/bigdata/tpcds/tbl-sf1000/
 ```
 
 Example output.
@@ -34,6 +34,6 @@ git clone // git@github.com:databricks/tpch-dbgen.git
 Generate data.
 
 ```bash
-cargo run --release -- --benchmark tpch --scale 100 --partitions 24 --generator_path ~/git/tpch-dbgen/ --output /mnt/bigdata/tpcds/tbl-sf1000/
+cargo run --release -- generate --benchmark tpch --scale 100 --partitions 24 --generator_path ~/git/tpch-dbgen/ --output /mnt/bigdata/tpcds/tbl-sf1000/
 ```
 
