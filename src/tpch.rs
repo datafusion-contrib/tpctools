@@ -79,6 +79,11 @@ impl Tpc for TpcH {
             "customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier",
         ];
 
+        if !Path::new(&output_path).exists() {
+            println!("Creating directory {}", output_path);
+            fs::create_dir(&output_path)?;
+        }
+
         for table in &tables {
             let output_dir = format!("{}/{}", output_path, table);
             if !Path::new(&output_dir).exists() {

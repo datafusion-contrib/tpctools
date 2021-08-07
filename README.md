@@ -1,6 +1,7 @@
 # TPC Tools
 
-Tools for generating TPC-H and TPC-DS data sets.  
+Command-line tools for generating TPC-H and TPC-DS data sets in parallel and re-organizing the output files 
+into directory structures that can be consumed by tools such as Apache Spark or Apache Arrow DataFusion/Ballista.  
 
 ## TPC-DS
 
@@ -14,7 +15,11 @@ git clone https://github.com/databricks/tpcds-kit.git
 Generate data.
 
 ```bash
-cargo run --release -- generate --benchmark tpcds --scale 1000 --partitions 48 --generator_path ~/git/tpcds-kit/tools/ --output /mnt/bigdata/tpcds/tbl-sf1000/
+cargo run --release -- generate --benchmark tpcds \
+  --scale 1000 \
+  --partitions 48 \
+  --generator-path ~/git/tpcds-kit/tools/ \
+  --output /tmp/tpcds-sf1000/
 ```
 
 Example output.
@@ -28,12 +33,18 @@ Generated TPC-DS data at scale factor 1000 with 48 partitions in: 6247.155671938
 Install dependencies.
 
 ```bash
-git clone // git@github.com:databricks/tpch-dbgen.git
+git clone git@github.com:databricks/tpch-dbgen.git
+cd tpch-dbgen
+make
 ```
 
 Generate data.
 
 ```bash
-cargo run --release -- generate --benchmark tpch --scale 100 --partitions 24 --generator_path ~/git/tpch-dbgen/ --output /mnt/bigdata/tpcds/tbl-sf1000/
+cargo run --release -- generate --benchmark tpch \
+  --scale 100 \
+  --partitions 24 \
+  --generator-path ~/git/tpch-dbgen/ \
+  --output /tmp/tpch-sf100/
 ```
 
