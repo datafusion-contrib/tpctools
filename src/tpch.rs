@@ -85,7 +85,7 @@ impl Tpc for TpcH {
         }
 
         for table in &tables {
-            let output_dir = format!("{}/{}", output_path, table);
+            let output_dir = format!("{}/{}.tbl", output_path, table);
             if !Path::new(&output_dir).exists() {
                 println!("Creating directory {}", output_dir);
                 fs::create_dir(&output_dir)?;
@@ -100,7 +100,7 @@ impl Tpc for TpcH {
 
             for i in 1..=partitions {
                 let filename = format!("{}/{}.tbl.{}", generator_path, table, i);
-                let filename2 = format!("{}/part-{}.dat", output_dir, i);
+                let filename2 = format!("{}/part-{}.tbl", output_dir, i);
                 if Path::new(&filename).exists() {
                     println!("mv {} {}", filename, filename2);
                     fs::rename(filename, filename2)?;
@@ -121,9 +121,9 @@ impl Tpc for TpcH {
             let options = CsvReadOptions::new()
                 .schema(&schema)
                 .delimiter(b'|')
-                .file_extension(".dat");
+                .file_extension(".tbl");
 
-            let path = format!("{}/{}", input_path, table);
+            let path = format!("{}/{}.tbl", input_path, table);
             let output_dir = format!("{}/{}.parquet", output_path, table);
             convert_tbl(
                 &path,

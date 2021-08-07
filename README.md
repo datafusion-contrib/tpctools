@@ -41,10 +41,10 @@ make
 Generate data.
 
 ```bash
-cargo run --release -- generate --benchmark tpch \
+`cargo run --release -- generate --benchmark tpch \
   --scale 100 \
   --partitions 24 \
   --generator-path ~/git/tpch-dbgen/ \
-  --output /tmp/tpch-sf100/
+  --output /tmp/tpch-sf100/`
 ```
 
