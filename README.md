@@ -19,7 +19,7 @@ cargo run --release -- generate --benchmark tpcds \
   --scale 1000 \
   --partitions 48 \
   --generator-path ~/git/tpcds-kit/tools/ \
-  --output /tmp/tpcds-sf1000/
+  --output /tmp/tpcds/sf1000
 ```
 
 Example output.
@@ -41,10 +41,10 @@ make
 Generate data.
 
 ```bash
-`cargo run --release -- generate --benchmark tpch \
-  --scale 100 \
-  --partitions 24 \
+cargo run --release -- generate --benchmark tpch \
+  --scale 1 \
+  --partitions 1 \
   --generator-path ~/git/tpch-dbgen/ \
-  --output /tmp/tpch-sf100/`
+  --output /tmp/tpch/sf1
 ```
 

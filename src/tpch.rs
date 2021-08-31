@@ -44,7 +44,7 @@ impl Tpc for TpcH {
 
         let start = Instant::now();
 
-        for i in 1..=partitions {
+        if partitions == 1 {
             let generator_path = generator_path.to_owned();
             handles.push(thread::spawn(move || {
                 let output = Command::new("./dbgen")
@@ -52,15 +52,28 @@ impl Tpc for TpcH {
                     .arg("-f")
                     .arg("-s")
                     .arg(format!("{}", scale))
-                    .arg("-C")
-                    .arg(format!("{}", partitions))
-                    .arg("-S")
-                    .arg(format!("{}", i))
                     .output()
                     .expect("failed to generate data");
-
                 println!("{:?}", output);
             }));
+        } else {
+            for i in 1..=partitions {
+                let generator_path = generator_path.to_owned();
+                handles.push(thread::spawn(move || {
+                    let output = Command::new("./dbgen")
+                        .current_dir(generator_path)
+                        .arg("-f")
+                        .arg("-s")
+                        .arg(format!("{}", scale))
+                        .arg("-C")
+                        .arg(format!("{}", partitions))
+                        .arg("-S")
+                        .arg(format!("{}", i))
+                        .output()
+                        .expect("failed to generate data");
+                    println!("{:?}", output);
+                }));
+            }
         }
 
         // wait for all threads to finish
@@ -98,12 +111,21 @@ impl Tpc for TpcH {
                 fs::rename(filename, filename2)?;
             }
 
-            for i in 1..=partitions {
-                let filename = format!("{}/{}.tbl.{}", generator_path, table, i);
-                let filename2 = format!("{}/part-{}.tbl", output_dir, i);
+            if partitions == 1 {
+                let filename = format!("{}/{}.tbl", generator_path, table);
+                let filename2 = format!("{}/part-0.tbl", output_dir);
                 if Path::new(&filename).exists() {
                     println!("mv {} {}", filename, filename2);
                     fs::rename(filename, filename2)?;
+                }
+            } else {
+                for i in 1..=partitions {
+                    let filename = format!("{}/{}.tbl.{}", generator_path, table, i);
+                    let filename2 = format!("{}/part-{}.tbl", output_dir, i);
+                    if Path::new(&filename).exists() {
+                        println!("mv {} {}", filename, filename2);
+                        fs::rename(filename, filename2)?;
+                    }
                 }
             }
         }
