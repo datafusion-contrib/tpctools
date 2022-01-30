@@ -61,7 +61,7 @@ pub async fn convert_tbl(
     let mut ctx = ExecutionContext::with_config(config);
 
     // build plan to read the TBL file
-    let mut csv = ctx.read_csv(&input_path, options)?;
+    let mut csv = ctx.read_csv(input_path, options).await?;
 
     // optionally, repartition the file
     if partitions > 1 {
@@ -71,7 +71,7 @@ pub async fn convert_tbl(
     // create the physical plan
     let csv = csv.to_logical_plan();
     let csv = ctx.optimize(&csv)?;
-    let csv = ctx.create_physical_plan(&csv)?;
+    let csv = ctx.create_physical_plan(&csv).await?;
 
     match file_format {
         "csv" => ctx.write_csv(csv, output_path.to_string()).await?,
