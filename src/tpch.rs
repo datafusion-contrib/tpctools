@@ -151,7 +151,6 @@ impl Tpc for TpcH {
                 &path,
                 &output_dir,
                 options,
-                //TODO parameterize
                 1,
                 "parquet",
                 "snappy",
@@ -262,4 +261,5 @@ impl Tpc for TpcH {
 
             _ => unimplemented!(),
         }
+    }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "tpctools"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Andy Grove <andygrove73@gmail.com>"]
 description = "Utilities for generating TPC-H and TPC-DS data sets"
 homepage = "https://github.com/andygrove/tpctools/"

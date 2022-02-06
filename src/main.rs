@@ -55,22 +55,6 @@ struct ConvertOpt {
     /// Output path
     #[structopt(parse(from_os_str), required = true, short = "o", long = "output")]
     output_path: PathBuf,
-
-    /// Output file format: `csv` or `parquet`
-    #[structopt(short = "f", long = "format")]
-    file_format: String,
-
-    /// Compression to use when writing Parquet files
-    #[structopt(short = "c", long = "compression", default_value = "snappy")]
-    compression: String,
-
-    /// Number of partitions to produce
-    #[structopt(short = "p", long = "partitions", default_value = "1")]
-    partitions: usize,
-
-    /// Batch size when reading CSV or Parquet files
-    #[structopt(short = "s", long = "batch-size", default_value = "8192")]
-    batch_size: usize,
 }
 
 #[derive(Debug, StructOpt)]
