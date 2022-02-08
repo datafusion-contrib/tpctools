@@ -82,7 +82,7 @@ impl Tpc for TpcDs {
         let tables = self.get_table_names();
 
         for table in &tables {
-            let output_dir = format!("{}/{}", output_path, table);
+            let output_dir = format!("{}/{}.dat", output_path, table);
             if !Path::new(&output_dir).exists() {
                 println!("Creating directory {}", output_dir);
                 fs::create_dir(&output_dir)?;
