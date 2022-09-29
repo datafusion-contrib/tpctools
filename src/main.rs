@@ -73,13 +73,25 @@ async fn main() -> Result<()> {
         Opt::Generate(opt) => {
             let scale = opt.scale;
             let partitions = opt.partitions;
-            let generator_path = opt.generator_path.as_path().to_str().unwrap().to_string();
-            let output_path_str = opt.output.as_path().to_str().unwrap().to_string();
+
+            if !opt.generator_path.exists() {
+                panic!(
+                    "generator path does not exist: {}",
+                    opt.generator_path.display()
+                )
+            }
+
+            if !opt.output.exists() {
+                panic!("output path does not exist: {}", opt.output.display())
+            }
+
+            let generator_path = format!("{}", opt.generator_path.display());
+            let output_path_str = format!("{}", opt.output.display());
 
             let tpc: Box<dyn Tpc> = match opt.benchmark.as_str() {
                 "tpcds" => Box::new(TpcDs::new()),
                 "tpch" => Box::new(TpcH::new()),
-                _ => panic!(),
+                _ => panic!("invalid benchmark name"),
             };
 
             tpc.generate(scale, partitions, &generator_path, &output_path_str)?;
@@ -88,7 +100,7 @@ async fn main() -> Result<()> {
             let tpc: Box<dyn Tpc> = match opt.benchmark.as_str() {
                 "tpcds" => Box::new(TpcDs::new()),
                 "tpch" => Box::new(TpcH::new()),
-                _ => panic!(),
+                _ => panic!("invalid benchmark name"),
             };
             match tpc
                 .convert_to_parquet(

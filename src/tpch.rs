@@ -17,8 +17,8 @@ use std::process::Command;
 use std::thread;
 use std::time::Instant;
 
-use arrow::datatypes::{DataType, Field, Schema};
 use async_trait::async_trait;
+use datafusion::arrow::datatypes::{DataType, Field, Schema};
 use datafusion::prelude::CsvReadOptions;
 
 use crate::{convert_tbl, Tpc};
@@ -147,16 +147,7 @@ impl Tpc for TpcH {
 
             let path = format!("{}/{}.tbl", input_path, table);
             let output_dir = format!("{}/{}.parquet", output_path, table);
-            convert_tbl(
-                &path,
-                &output_dir,
-                options,
-                1,
-                "parquet",
-                "snappy",
-                8192,
-            )
-            .await?;
+            convert_tbl(&path, &output_dir, options, 1, "parquet", "snappy", 8192).await?;
         }
 
         Ok(())

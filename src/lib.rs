@@ -13,12 +13,12 @@
 use std::io::Result;
 use std::time::Instant;
 
-use arrow::datatypes::Schema;
 use async_trait::async_trait;
+use datafusion::arrow::datatypes::Schema;
 use datafusion::error::DataFusionError;
+use datafusion::parquet::basic::Compression;
+use datafusion::parquet::file::properties::WriterProperties;
 use datafusion::prelude::*;
-use parquet::basic::Compression;
-use parquet::file::properties::WriterProperties;
 
 pub mod tpcds;
 pub mod tpch;
@@ -57,8 +57,8 @@ pub async fn convert_tbl(
 
     let start = Instant::now();
 
-    let config = ExecutionConfig::new().with_batch_size(batch_size);
-    let mut ctx = ExecutionContext::with_config(config);
+    let config = SessionConfig::new().with_batch_size(batch_size);
+    let ctx = SessionContext::with_config(config);
 
     // build plan to read the TBL file
     let mut csv = ctx.read_csv(input_path, options).await?;
@@ -69,8 +69,7 @@ pub async fn convert_tbl(
     }
 
     // create the physical plan
-    let csv = csv.to_logical_plan();
-    let csv = ctx.optimize(&csv)?;
+    let csv = csv.to_logical_plan()?;
     let csv = ctx.create_physical_plan(&csv).await?;
 
     match file_format {
