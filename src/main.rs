@@ -17,7 +17,7 @@ use structopt::StructOpt;
 
 use tpctools::tpcds::TpcDs;
 use tpctools::tpch::TpcH;
-use tpctools::Tpc;
+use tpctools::{convert_to_parquet, Tpc};
 
 #[derive(Debug, StructOpt)]
 struct GenerateOpt {
@@ -88,26 +88,18 @@ async fn main() -> Result<()> {
             let generator_path = format!("{}", opt.generator_path.display());
             let output_path_str = format!("{}", opt.output.display());
 
-            let tpc: Box<dyn Tpc> = match opt.benchmark.as_str() {
-                "tpcds" => Box::new(TpcDs::new()),
-                "tpch" => Box::new(TpcH::new()),
-                _ => panic!("invalid benchmark name"),
-            };
+            let tpc = create_benchmark(&opt.benchmark);
 
             tpc.generate(scale, partitions, &generator_path, &output_path_str)?;
         }
         Opt::Convert(opt) => {
-            let tpc: Box<dyn Tpc> = match opt.benchmark.as_str() {
-                "tpcds" => Box::new(TpcDs::new()),
-                "tpch" => Box::new(TpcH::new()),
-                _ => panic!("invalid benchmark name"),
-            };
-            match tpc
-                .convert_to_parquet(
-                    opt.input_path.as_path().to_str().unwrap(),
-                    opt.output_path.as_path().to_str().unwrap(),
-                )
-                .await
+            let tpc = create_benchmark(&opt.benchmark);
+            match convert_to_parquet(
+                tpc.as_ref(),
+                opt.input_path.as_path().to_str().unwrap(),
+                opt.output_path.as_path().to_str().unwrap(),
+            )
+            .await
             {
                 Ok(_) => {}
                 Err(e) => println!("{:?}", e),
@@ -116,4 +108,12 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn create_benchmark(name: &str) -> Box<dyn Tpc> {
+    match name {
+        "tpcds" | "tpc-ds" => Box::new(TpcDs::new()),
+        "tpch" | "tpc-h" => Box::new(TpcH::new()),
+        _ => panic!("invalid benchmark name"),
+    }
 }

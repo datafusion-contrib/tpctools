@@ -637,23 +637,7 @@ impl Tpc for TpcDs {
         }
     }
 
-    async fn convert_to_parquet(
-        &self,
-        input_path: &str,
-        output_path: &str,
-    ) -> datafusion::error::Result<()> {
-        for table in self.get_table_names() {
-            let schema = self.get_schema(table);
-            let options = CsvReadOptions::new()
-                .schema(&schema)
-                .delimiter(b'|')
-                .file_extension(".tbl");
-
-            let path = format!("{}/{}.tbl", input_path, table);
-            let output_dir = format!("{}/{}.parquet", output_path, table);
-            convert_tbl(&path, &output_dir, options, 1, "parquet", "snappy", 8192).await?;
-        }
-
-        Ok(())
+    fn get_table_ext(&self) -> &str {
+        "dat"
     }
 }

@@ -10,7 +10,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fs::{self, File};
 use std::io::Result;
+use std::path::Path;
 use std::time::Instant;
 
 use async_trait::async_trait;
@@ -32,27 +34,75 @@ pub trait Tpc {
         input_path: &str,
         output_path: &str,
     ) -> Result<()>;
+
     fn get_table_names(&self) -> Vec<&str>;
+
+    fn get_table_ext(&self) -> &str;
+
     fn get_schema(&self, table: &str) -> Schema;
-    async fn convert_to_parquet(
-        &self,
-        input_path: &str,
-        output_path: &str,
-    ) -> datafusion::error::Result<()>;
+}
+
+pub async fn convert_to_parquet(
+    benchmark: &dyn Tpc,
+    input_path: &str,
+    output_path: &str,
+) -> datafusion::error::Result<()> {
+    for table in benchmark.get_table_names() {
+        let schema = benchmark.get_schema(table);
+
+        let x = format!(".{}", benchmark.get_table_ext());
+        let options = CsvReadOptions::new()
+            .schema(&schema)
+            .delimiter(b'|')
+            .file_extension(&x);
+
+        let path = format!("{}/{}.{}", input_path, table, benchmark.get_table_ext());
+        let path = Path::new(&path);
+        if !path.exists() {
+            panic!("path does not exist: {:?}", path);
+        }
+
+        let x = format!("{}/{}.parquet", output_path, table);
+        let output_dir = Path::new(&x);
+        if output_dir.exists() {
+            panic!("output dir already exists: {}", output_dir.display());
+        }
+        println!("Creating directory: {}", output_dir.display());
+        fs::create_dir(&output_dir).unwrap();
+
+        let files = fs::read_dir(path).unwrap();
+        for file in files {
+            let file = file?;
+            let stub = file.file_name().to_str().unwrap().to_owned();
+            let stub = &stub[0..stub.len() - 4]; // remove .dat or .tbl
+            let output_file = format!("{}/{}.parquet", output_dir.display(), stub);
+            convert_tbl(
+                &file.path(),
+                &output_file,
+                &options,
+                "parquet",
+                "snappy",
+                8192,
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
 }
 
 pub async fn convert_tbl(
-    input_path: &str,
-    output_path: &str,
-    options: CsvReadOptions<'_>,
-    partitions: usize,
+    input_path: &Path,
+    output_filename: &str,
+    options: &CsvReadOptions<'_>,
     file_format: &str,
     compression: &str,
     batch_size: usize,
 ) -> datafusion::error::Result<()> {
     println!(
-        "Converting '{}' to {} files in directory '{}'",
-        input_path, file_format, output_path
+        "Converting '{}' to {}",
+        input_path.display(),
+        output_filename
     );
 
     let start = Instant::now();
@@ -61,19 +111,15 @@ pub async fn convert_tbl(
     let ctx = SessionContext::with_config(config);
 
     // build plan to read the TBL file
-    let mut csv = ctx.read_csv(input_path, options).await?;
-
-    // optionally, repartition the file
-    if partitions > 1 {
-        csv = csv.repartition(Partitioning::RoundRobinBatch(partitions))?
-    }
+    let csv_filename = format!("{}", input_path.display());
+    let csv = ctx.read_csv(&csv_filename, options.clone()).await?;
 
     // create the physical plan
     let csv = csv.to_logical_plan()?;
     let csv = ctx.create_physical_plan(&csv).await?;
 
     match file_format {
-        "csv" => ctx.write_csv(csv, output_path.to_string()).await?,
+        "csv" => ctx.write_csv(csv, output_filename.to_string()).await?,
         "parquet" => {
             let compression = match compression {
                 "none" => Compression::UNCOMPRESSED,
@@ -94,7 +140,7 @@ pub async fn convert_tbl(
                 .set_compression(compression)
                 .build();
 
-            ctx.write_parquet(csv, output_path.to_string(), Some(props))
+            ctx.write_parquet(csv, output_filename.to_string(), Some(props))
                 .await?
         }
         other => {

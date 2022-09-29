@@ -19,9 +19,8 @@ use std::time::Instant;
 
 use async_trait::async_trait;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
-use datafusion::prelude::CsvReadOptions;
 
-use crate::{convert_tbl, Tpc};
+use crate::Tpc;
 
 pub struct TpcH {}
 
@@ -133,26 +132,6 @@ impl Tpc for TpcH {
         Ok(())
     }
 
-    async fn convert_to_parquet(
-        &self,
-        input_path: &str,
-        output_path: &str,
-    ) -> datafusion::error::Result<()> {
-        for table in self.get_table_names() {
-            let schema = self.get_schema(table);
-            let options = CsvReadOptions::new()
-                .schema(&schema)
-                .delimiter(b'|')
-                .file_extension(".tbl");
-
-            let path = format!("{}/{}.tbl", input_path, table);
-            let output_dir = format!("{}/{}.parquet", output_path, table);
-            convert_tbl(&path, &output_dir, options, 1, "parquet", "snappy", 8192).await?;
-        }
-
-        Ok(())
-    }
-
     fn get_table_names(&self) -> Vec<&str> {
         vec![
             "customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier",
@@ -252,5 +231,9 @@ impl Tpc for TpcH {
 
             _ => unimplemented!(),
         }
+    }
+
+    fn get_table_ext(&self) -> &str {
+        "tbl"
     }
 }
