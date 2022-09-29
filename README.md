@@ -15,11 +15,13 @@ git clone https://github.com/databricks/tpcds-kit.git
 Generate data.
 
 ```bash
+mkdir /tmp/tpcds/sf1000
+
 cargo run --release -- generate --benchmark tpcds \
   --scale 1000 \
   --partitions 48 \
   --generator-path ~/git/tpcds-kit/tools/ \
-  --output /tmp/tpcds/sf1000
+  --output /tmp/tpcds/sf1000/
 ```
 
 Example output.
