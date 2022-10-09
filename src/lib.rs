@@ -48,20 +48,7 @@ pub async fn convert_to_parquet(
     input_path: &str,
     output_path: &str,
 ) -> datafusion::error::Result<()> {
-    let num_parallel_tasks = 16;
-    let multi_threaded_runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .worker_threads(num_parallel_tasks)
-        .build()?;
 
-    multi_threaded_runtime.block_on(_convert_to_parquet(benchmark, input_path, output_path))
-}
-
-pub async fn _convert_to_parquet(
-    benchmark: &dyn Tpc,
-    input_path: &str,
-    output_path: &str,
-) -> datafusion::error::Result<()> {
     for table in benchmark.get_table_names() {
         let schema = benchmark.get_schema(table);
 
