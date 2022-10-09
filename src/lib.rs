@@ -10,7 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::{self, File};
+use std::fs;
 use std::io::Result;
 use std::path::Path;
 use std::time::Instant;
@@ -21,6 +21,7 @@ use datafusion::error::DataFusionError;
 use datafusion::parquet::basic::Compression;
 use datafusion::parquet::file::properties::WriterProperties;
 use datafusion::prelude::*;
+use futures::StreamExt;
 
 pub mod tpcds;
 pub mod tpch;
@@ -47,14 +48,28 @@ pub async fn convert_to_parquet(
     input_path: &str,
     output_path: &str,
 ) -> datafusion::error::Result<()> {
+    let num_parallel_tasks = 16;
+    let multi_threaded_runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(num_parallel_tasks)
+        .build()?;
+
+    multi_threaded_runtime.block_on(_convert_to_parquet(benchmark, input_path, output_path))
+}
+
+pub async fn _convert_to_parquet(
+    benchmark: &dyn Tpc,
+    input_path: &str,
+    output_path: &str,
+) -> datafusion::error::Result<()> {
     for table in benchmark.get_table_names() {
         let schema = benchmark.get_schema(table);
 
-        let x = format!(".{}", benchmark.get_table_ext());
+        let file_ext = format!(".{}", benchmark.get_table_ext());
         let options = CsvReadOptions::new()
             .schema(&schema)
             .delimiter(b'|')
-            .file_extension(&x);
+            .file_extension(&file_ext);
 
         let path = format!("{}/{}.{}", input_path, table, benchmark.get_table_ext());
         let path = Path::new(&path);
@@ -71,21 +86,34 @@ pub async fn convert_to_parquet(
         fs::create_dir(&output_dir).unwrap();
 
         let files = fs::read_dir(path).unwrap();
+        let mut file_vec = vec![];
         for file in files {
             let file = file?;
+            file_vec.push(file);
+        }
+
+        let x = futures::stream::iter(file_vec.into_iter().map(|file| {
             let stub = file.file_name().to_str().unwrap().to_owned();
             let stub = &stub[0..stub.len() - 4]; // remove .dat or .tbl
             let output_file = format!("{}/{}.parquet", output_dir.display(), stub);
-            convert_tbl(
-                &file.path(),
-                &output_file,
-                &options,
-                "parquet",
-                "snappy",
-                8192,
-            )
-            .await?;
-        }
+            let options = options.clone();
+            async move {
+                convert_tbl(
+                    &file.path(),
+                    &output_file,
+                    &options,
+                    "parquet",
+                    "snappy",
+                    8192,
+                )
+                .await
+            }
+        }))
+        .buffer_unordered(3)
+        .map(|r| println!("finished request: {:?}", r))
+        .collect::<Vec<_>>();
+
+        x.await;
     }
 
     Ok(())

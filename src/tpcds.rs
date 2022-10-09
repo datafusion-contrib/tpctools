@@ -12,7 +12,6 @@
 
 use async_trait::async_trait;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
-use datafusion::prelude::CsvReadOptions;
 use std::fs;
 use std::io::Result;
 use std::path::Path;
@@ -20,7 +19,7 @@ use std::process::Command;
 use std::thread;
 use std::time::Instant;
 
-use crate::{convert_tbl, Tpc};
+use crate::Tpc;
 
 pub struct TpcDs {}
 
@@ -148,7 +147,7 @@ impl Tpc for TpcDs {
                 Field::new("ca_state", DataType::Utf8, true),
                 Field::new("ca_zip", DataType::Utf8, true),
                 Field::new("ca_country", DataType::Utf8, true),
-                Field::new("ca_gmt_offset", DataType::Decimal128(5, 2), true),
+                Field::new("ca_gmt_offset", make_decimal_type(5, 2), true),
                 Field::new("ca_location_type", DataType::Utf8, true),
             ]),
 
@@ -209,7 +208,7 @@ impl Tpc for TpcDs {
                 Field::new("w_state", DataType::Utf8, true),
                 Field::new("w_zip", DataType::Utf8, true),
                 Field::new("w_country", DataType::Utf8, true),
-                Field::new("w_gmt_offset", DataType::Decimal128(5, 2), true),
+                Field::new("w_gmt_offset", make_decimal_type(5, 2), true),
             ]),
 
             "ship_mode" => Schema::new(vec![
@@ -252,8 +251,8 @@ impl Tpc for TpcDs {
                 Field::new("i_rec_start_date", DataType::Date32, true),
                 Field::new("i_rec_end_date", DataType::Date32, true),
                 Field::new("i_item_desc", DataType::Utf8, true),
-                Field::new("i_current_price", DataType::Decimal128(7, 2), true),
-                Field::new("i_wholesale_cost", DataType::Decimal128(7, 2), true),
+                Field::new("i_current_price", make_decimal_type(7, 2), true),
+                Field::new("i_wholesale_cost", make_decimal_type(7, 2), true),
                 Field::new("i_brand_id", DataType::Int32, true),
                 Field::new("i_brand", DataType::Utf8, true),
                 Field::new("i_class_id", DataType::Int32, true),
@@ -299,8 +298,8 @@ impl Tpc for TpcDs {
                 Field::new("s_state", DataType::Utf8, true),
                 Field::new("s_zip", DataType::Utf8, true),
                 Field::new("s_country", DataType::Utf8, true),
-                Field::new("s_gmt_offset", DataType::Decimal128(5, 2), true),
-                Field::new("s_tax_precentage", DataType::Decimal128(5, 2), true),
+                Field::new("s_gmt_offset", make_decimal_type(5, 2), true),
+                Field::new("s_tax_precentage", make_decimal_type(5, 2), true),
             ]),
 
             "call_center" => Schema::new(vec![
@@ -333,8 +332,8 @@ impl Tpc for TpcDs {
                 Field::new("cc_state", DataType::Utf8, true),
                 Field::new("cc_zip", DataType::Utf8, true),
                 Field::new("cc_country", DataType::Utf8, true),
-                Field::new("cc_gmt_offset", DataType::Decimal128(5, 2), true),
-                Field::new("cc_tax_percentage", DataType::Decimal128(5, 2), true),
+                Field::new("cc_gmt_offset", make_decimal_type(5, 2), true),
+                Field::new("cc_tax_percentage", make_decimal_type(5, 2), true),
             ]),
 
             "customer" => Schema::new(vec![
@@ -383,8 +382,8 @@ impl Tpc for TpcDs {
                 Field::new("web_state", DataType::Utf8, true),
                 Field::new("web_zip", DataType::Utf8, true),
                 Field::new("web_country", DataType::Utf8, true),
-                Field::new("web_gmt_offset", DataType::Decimal128(5, 2), true),
-                Field::new("web_tax_percentage", DataType::Decimal128(5, 2), true),
+                Field::new("web_gmt_offset", make_decimal_type(5, 2), true),
+                Field::new("web_tax_percentage", make_decimal_type(5, 2), true),
             ]),
 
             "store_returns" => Schema::new(vec![
@@ -399,15 +398,15 @@ impl Tpc for TpcDs {
                 Field::new("sr_reason_sk", DataType::Int32, true),
                 Field::new("sr_ticket_number", DataType::Int32, false),
                 Field::new("sr_return_quantity", DataType::Int32, true),
-                Field::new("sr_return_amt", DataType::Decimal128(7, 2), true),
-                Field::new("sr_return_tax", DataType::Decimal128(7, 2), true),
-                Field::new("sr_return_amt_inc_tax", DataType::Decimal128(7, 2), true),
-                Field::new("sr_fee", DataType::Decimal128(7, 2), true),
-                Field::new("sr_return_ship_cost", DataType::Decimal128(7, 2), true),
-                Field::new("sr_refunded_cash", DataType::Decimal128(7, 2), true),
-                Field::new("sr_reversed_charge", DataType::Decimal128(7, 2), true),
-                Field::new("sr_store_credit", DataType::Decimal128(7, 2), true),
-                Field::new("sr_net_loss", DataType::Decimal128(7, 2), true),
+                Field::new("sr_return_amt", make_decimal_type(7, 2), true),
+                Field::new("sr_return_tax", make_decimal_type(7, 2), true),
+                Field::new("sr_return_amt_inc_tax", make_decimal_type(7, 2), true),
+                Field::new("sr_fee", make_decimal_type(7, 2), true),
+                Field::new("sr_return_ship_cost", make_decimal_type(7, 2), true),
+                Field::new("sr_refunded_cash", make_decimal_type(7, 2), true),
+                Field::new("sr_reversed_charge", make_decimal_type(7, 2), true),
+                Field::new("sr_store_credit", make_decimal_type(7, 2), true),
+                Field::new("sr_net_loss", make_decimal_type(7, 2), true),
             ]),
 
             "household_demographics" => Schema::new(vec![
@@ -441,7 +440,7 @@ impl Tpc for TpcDs {
                 Field::new("p_start_date_sk", DataType::Int32, true),
                 Field::new("p_end_date_sk", DataType::Int32, true),
                 Field::new("p_item_sk", DataType::Int32, true),
-                Field::new("p_cost", DataType::Decimal128(15, 2), true),
+                Field::new("p_cost", make_decimal_type(15, 2), true),
                 Field::new("p_response_target", DataType::Int32, true),
                 Field::new("p_promo_name", DataType::Utf8, true),
                 Field::new("p_channel_dmail", DataType::Utf8, true),
@@ -495,15 +494,15 @@ impl Tpc for TpcDs {
                 Field::new("cr_reason_sk", DataType::Int32, true),
                 Field::new("cr_order_number", DataType::Int32, false),
                 Field::new("cr_return_quantity", DataType::Int32, true),
-                Field::new("cr_return_amount", DataType::Decimal128(7, 2), true),
-                Field::new("cr_return_tax", DataType::Decimal128(7, 2), true),
-                Field::new("cr_return_amt_inc_tax", DataType::Decimal128(7, 2), true),
-                Field::new("cr_fee", DataType::Decimal128(7, 2), true),
-                Field::new("cr_return_ship_cost", DataType::Decimal128(7, 2), true),
-                Field::new("cr_refunded_cash", DataType::Decimal128(7, 2), true),
-                Field::new("cr_reversed_charge", DataType::Decimal128(7, 2), true),
-                Field::new("cr_store_credit", DataType::Decimal128(7, 2), true),
-                Field::new("cr_net_loss", DataType::Decimal128(7, 2), true),
+                Field::new("cr_return_amount", make_decimal_type(7, 2), true),
+                Field::new("cr_return_tax", make_decimal_type(7, 2), true),
+                Field::new("cr_return_amt_inc_tax", make_decimal_type(7, 2), true),
+                Field::new("cr_fee", make_decimal_type(7, 2), true),
+                Field::new("cr_return_ship_cost", make_decimal_type(7, 2), true),
+                Field::new("cr_refunded_cash", make_decimal_type(7, 2), true),
+                Field::new("cr_reversed_charge", make_decimal_type(7, 2), true),
+                Field::new("cr_store_credit", make_decimal_type(7, 2), true),
+                Field::new("cr_net_loss", make_decimal_type(7, 2), true),
             ]),
 
             "web_returns" => Schema::new(vec![
@@ -522,15 +521,15 @@ impl Tpc for TpcDs {
                 Field::new("wr_reason_sk", DataType::Int32, true),
                 Field::new("wr_order_number", DataType::Int32, false),
                 Field::new("wr_return_quantity", DataType::Int32, true),
-                Field::new("wr_return_amt", DataType::Decimal128(7, 2), true),
-                Field::new("wr_return_tax", DataType::Decimal128(7, 2), true),
-                Field::new("wr_return_amt_inc_tax", DataType::Decimal128(7, 2), true),
-                Field::new("wr_fee", DataType::Decimal128(7, 2), true),
-                Field::new("wr_return_ship_cost", DataType::Decimal128(7, 2), true),
-                Field::new("wr_refunded_cash", DataType::Decimal128(7, 2), true),
-                Field::new("wr_reversed_charge", DataType::Decimal128(7, 2), true),
-                Field::new("wr_account_credit", DataType::Decimal128(7, 2), true),
-                Field::new("wr_net_loss", DataType::Decimal128(7, 2), true),
+                Field::new("wr_return_amt", make_decimal_type(7, 2), true),
+                Field::new("wr_return_tax", make_decimal_type(7, 2), true),
+                Field::new("wr_return_amt_inc_tax", make_decimal_type(7, 2), true),
+                Field::new("wr_fee", make_decimal_type(7, 2), true),
+                Field::new("wr_return_ship_cost", make_decimal_type(7, 2), true),
+                Field::new("wr_refunded_cash", make_decimal_type(7, 2), true),
+                Field::new("wr_reversed_charge", make_decimal_type(7, 2), true),
+                Field::new("wr_account_credit", make_decimal_type(7, 2), true),
+                Field::new("wr_net_loss", make_decimal_type(7, 2), true),
             ]),
 
             "web_sales" => Schema::new(vec![
@@ -553,21 +552,21 @@ impl Tpc for TpcDs {
                 Field::new("ws_promo_sk", DataType::Int32, true),
                 Field::new("ws_order_number", DataType::Int32, false),
                 Field::new("ws_quantity", DataType::Int32, true),
-                Field::new("ws_wholesale_cost", DataType::Decimal128(7, 2), true),
-                Field::new("ws_list_price", DataType::Decimal128(7, 2), true),
-                Field::new("ws_sales_price", DataType::Decimal128(7, 2), true),
-                Field::new("ws_ext_discount_amt", DataType::Decimal128(7, 2), true),
-                Field::new("ws_ext_sales_price", DataType::Decimal128(7, 2), true),
-                Field::new("ws_ext_wholesale_cost", DataType::Decimal128(7, 2), true),
-                Field::new("ws_ext_list_price", DataType::Decimal128(7, 2), true),
-                Field::new("ws_ext_tax", DataType::Decimal128(7, 2), true),
-                Field::new("ws_coupon_amt", DataType::Decimal128(7, 2), true),
-                Field::new("ws_ext_ship_cost", DataType::Decimal128(7, 2), true),
-                Field::new("ws_net_paid", DataType::Decimal128(7, 2), true),
-                Field::new("ws_net_paid_inc_tax", DataType::Decimal128(7, 2), true),
-                Field::new("ws_net_paid_inc_ship", DataType::Decimal128(7, 2), true),
-                Field::new("ws_net_paid_inc_ship_tax", DataType::Decimal128(7, 2), true),
-                Field::new("ws_net_profit", DataType::Decimal128(7, 2), true),
+                Field::new("ws_wholesale_cost", make_decimal_type(7, 2), true),
+                Field::new("ws_list_price", make_decimal_type(7, 2), true),
+                Field::new("ws_sales_price", make_decimal_type(7, 2), true),
+                Field::new("ws_ext_discount_amt", make_decimal_type(7, 2), true),
+                Field::new("ws_ext_sales_price", make_decimal_type(7, 2), true),
+                Field::new("ws_ext_wholesale_cost", make_decimal_type(7, 2), true),
+                Field::new("ws_ext_list_price", make_decimal_type(7, 2), true),
+                Field::new("ws_ext_tax", make_decimal_type(7, 2), true),
+                Field::new("ws_coupon_amt", make_decimal_type(7, 2), true),
+                Field::new("ws_ext_ship_cost", make_decimal_type(7, 2), true),
+                Field::new("ws_net_paid", make_decimal_type(7, 2), true),
+                Field::new("ws_net_paid_inc_tax", make_decimal_type(7, 2), true),
+                Field::new("ws_net_paid_inc_ship", make_decimal_type(7, 2), true),
+                Field::new("ws_net_paid_inc_ship_tax", make_decimal_type(7, 2), true),
+                Field::new("ws_net_profit", make_decimal_type(7, 2), true),
             ]),
 
             "catalog_sales" => Schema::new(vec![
@@ -590,21 +589,21 @@ impl Tpc for TpcDs {
                 Field::new("cs_promo_sk", DataType::Int32, true),
                 Field::new("cs_order_number", DataType::Int32, false),
                 Field::new("cs_quantity", DataType::Int32, true),
-                Field::new("cs_wholesale_cost", DataType::Decimal128(7, 2), true),
-                Field::new("cs_list_price", DataType::Decimal128(7, 2), true),
-                Field::new("cs_sales_price", DataType::Decimal128(7, 2), true),
-                Field::new("cs_ext_discount_amt", DataType::Decimal128(7, 2), true),
-                Field::new("cs_ext_sales_price", DataType::Decimal128(7, 2), true),
-                Field::new("cs_ext_wholesale_cost", DataType::Decimal128(7, 2), true),
-                Field::new("cs_ext_list_price", DataType::Decimal128(7, 2), true),
-                Field::new("cs_ext_tax", DataType::Decimal128(7, 2), true),
-                Field::new("cs_coupon_amt", DataType::Decimal128(7, 2), true),
-                Field::new("cs_ext_ship_cost", DataType::Decimal128(7, 2), true),
-                Field::new("cs_net_paid", DataType::Decimal128(7, 2), true),
-                Field::new("cs_net_paid_inc_tax", DataType::Decimal128(7, 2), true),
-                Field::new("cs_net_paid_inc_ship", DataType::Decimal128(7, 2), true),
-                Field::new("cs_net_paid_inc_ship_tax", DataType::Decimal128(7, 2), true),
-                Field::new("cs_net_profit", DataType::Decimal128(7, 2), true),
+                Field::new("cs_wholesale_cost", make_decimal_type(7, 2), true),
+                Field::new("cs_list_price", make_decimal_type(7, 2), true),
+                Field::new("cs_sales_price", make_decimal_type(7, 2), true),
+                Field::new("cs_ext_discount_amt", make_decimal_type(7, 2), true),
+                Field::new("cs_ext_sales_price", make_decimal_type(7, 2), true),
+                Field::new("cs_ext_wholesale_cost", make_decimal_type(7, 2), true),
+                Field::new("cs_ext_list_price", make_decimal_type(7, 2), true),
+                Field::new("cs_ext_tax", make_decimal_type(7, 2), true),
+                Field::new("cs_coupon_amt", make_decimal_type(7, 2), true),
+                Field::new("cs_ext_ship_cost", make_decimal_type(7, 2), true),
+                Field::new("cs_net_paid", make_decimal_type(7, 2), true),
+                Field::new("cs_net_paid_inc_tax", make_decimal_type(7, 2), true),
+                Field::new("cs_net_paid_inc_ship", make_decimal_type(7, 2), true),
+                Field::new("cs_net_paid_inc_ship_tax", make_decimal_type(7, 2), true),
+                Field::new("cs_net_profit", make_decimal_type(7, 2), true),
             ]),
 
             "store_sales" => Schema::new(vec![
@@ -619,18 +618,18 @@ impl Tpc for TpcDs {
                 Field::new("ss_promo_sk", DataType::Int32, true),
                 Field::new("ss_ticket_number", DataType::Int32, false),
                 Field::new("ss_quantity", DataType::Int32, true),
-                Field::new("ss_wholesale_cost", DataType::Decimal128(7, 2), true),
-                Field::new("ss_list_price", DataType::Decimal128(7, 2), true),
-                Field::new("ss_sales_price", DataType::Decimal128(7, 2), true),
-                Field::new("ss_ext_discount_amt", DataType::Decimal128(7, 2), true),
-                Field::new("ss_ext_sales_price", DataType::Decimal128(7, 2), true),
-                Field::new("ss_ext_wholesale_cost", DataType::Decimal128(7, 2), true),
-                Field::new("ss_ext_list_price", DataType::Decimal128(7, 2), true),
-                Field::new("ss_ext_tax", DataType::Decimal128(7, 2), true),
-                Field::new("ss_coupon_amt", DataType::Decimal128(7, 2), true),
-                Field::new("ss_net_paid", DataType::Decimal128(7, 2), true),
-                Field::new("ss_net_paid_inc_tax", DataType::Decimal128(7, 2), true),
-                Field::new("ss_net_profit", DataType::Decimal128(7, 2), true),
+                Field::new("ss_wholesale_cost", make_decimal_type(7, 2), true),
+                Field::new("ss_list_price", make_decimal_type(7, 2), true),
+                Field::new("ss_sales_price", make_decimal_type(7, 2), true),
+                Field::new("ss_ext_discount_amt", make_decimal_type(7, 2), true),
+                Field::new("ss_ext_sales_price", make_decimal_type(7, 2), true),
+                Field::new("ss_ext_wholesale_cost", make_decimal_type(7, 2), true),
+                Field::new("ss_ext_list_price", make_decimal_type(7, 2), true),
+                Field::new("ss_ext_tax", make_decimal_type(7, 2), true),
+                Field::new("ss_coupon_amt", make_decimal_type(7, 2), true),
+                Field::new("ss_net_paid", make_decimal_type(7, 2), true),
+                Field::new("ss_net_paid_inc_tax", make_decimal_type(7, 2), true),
+                Field::new("ss_net_profit", make_decimal_type(7, 2), true),
             ]),
 
             _ => panic!(),
@@ -640,4 +639,8 @@ impl Tpc for TpcDs {
     fn get_table_ext(&self) -> &str {
         "dat"
     }
+}
+
+fn make_decimal_type(p: u8, s: u8) -> DataType {
+    DataType::Decimal128(p, s)
 }
