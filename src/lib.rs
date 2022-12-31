@@ -21,7 +21,7 @@ use datafusion::error::DataFusionError;
 use datafusion::parquet::basic::Compression;
 use datafusion::parquet::file::properties::WriterProperties;
 use datafusion::prelude::*;
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 
 pub mod tpcds;
 pub mod tpch;
@@ -48,7 +48,6 @@ pub async fn convert_to_parquet(
     input_path: &str,
     output_path: &str,
 ) -> datafusion::error::Result<()> {
-
     for table in benchmark.get_table_names() {
         let schema = benchmark.get_schema(table);
 
@@ -64,8 +63,9 @@ pub async fn convert_to_parquet(
             panic!("path does not exist: {:?}", path);
         }
 
-        let x = format!("{}/{}.parquet", output_path, table);
-        let output_dir = Path::new(&x);
+        // create output dir
+        let output_dir_name = format!("{}/{}.parquet", output_path, table);
+        let output_dir = Path::new(&output_dir_name);
         if output_dir.exists() {
             panic!("output dir already exists: {}", output_dir.display());
         }
@@ -79,28 +79,45 @@ pub async fn convert_to_parquet(
             file_vec.push(file);
         }
 
-        let x = futures::stream::iter(file_vec.into_iter().map(|file| {
+        // TODO make async again
+        // let x = futures::stream::iter(file_vec.iter().map(|file| {
+
+        let mut part = 0;
+        for file in &file_vec {
             let stub = file.file_name().to_str().unwrap().to_owned();
             let stub = &stub[0..stub.len() - 4]; // remove .dat or .tbl
-            let output_file = format!("{}/{}.parquet", output_dir.display(), stub);
+                                                 // write to temp dir that will contain nested dirs
+                                                 // example: /tmp/nation-temp.parquet/part-1.parquet/part-0.parquet
+            let output_parts_dir = format!("{}/{}-temp.parquet", output_dir.display(), stub);
+            println!("Writing {}", output_parts_dir);
             let options = options.clone();
-            async move {
-                convert_tbl(
-                    &file.path(),
-                    &output_file,
-                    &options,
-                    "parquet",
-                    "snappy",
-                    8192,
-                )
-                .await
-            }
-        }))
-        .buffer_unordered(3)
-        .map(|r| println!("finished request: {:?}", r))
-        .collect::<Vec<_>>();
+            // async move {
+            convert_tbl(
+                &file.path(),
+                &output_parts_dir,
+                &options,
+                "parquet",
+                "snappy",
+                8192,
+            )
+            .await?;
+            // }
 
-        x.await;
+            let paths = fs::read_dir(&output_parts_dir).unwrap();
+            for path in paths {
+                let path = path.unwrap();
+                let path = format!("{}", path.path().display());
+                let dest_file = format!("{}/part-{}.parquet", output_dir.display(), part);
+                part += 1;
+                println!("Moving {} to {}", path, dest_file);
+                fs::rename(&path, &dest_file).unwrap();
+            }
+        }
+
+        // }))
+        // .buffer_unordered(3)
+        // .map(|r| println!("finished request: {:?}", r))
+        // .collect::<Vec<_>>();
     }
 
     Ok(())

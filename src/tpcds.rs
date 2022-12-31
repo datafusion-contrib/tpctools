@@ -641,6 +641,6 @@ impl Tpc for TpcDs {
     }
 }
 
-fn make_decimal_type(p: u8, s: u8) -> DataType {
+fn make_decimal_type(p: u8, s: i8) -> DataType {
     DataType::Decimal128(p, s)
 }
