@@ -21,7 +21,6 @@ use datafusion::error::DataFusionError;
 use datafusion::parquet::basic::Compression;
 use datafusion::parquet::file::properties::WriterProperties;
 use datafusion::prelude::*;
-use futures::{FutureExt, StreamExt};
 
 pub mod tpcds;
 pub mod tpch;
@@ -70,17 +69,14 @@ pub async fn convert_to_parquet(
             panic!("output dir already exists: {}", output_dir.display());
         }
         println!("Creating directory: {}", output_dir.display());
-        fs::create_dir(&output_dir).unwrap();
+        fs::create_dir(&output_dir)?;
 
-        let files = fs::read_dir(path).unwrap();
+        let files = fs::read_dir(path)?;
         let mut file_vec = vec![];
         for file in files {
             let file = file?;
             file_vec.push(file);
         }
-
-        // TODO make async again
-        // let x = futures::stream::iter(file_vec.iter().map(|file| {
 
         let mut part = 0;
         for file in &file_vec {
@@ -103,21 +99,17 @@ pub async fn convert_to_parquet(
             .await?;
             // }
 
-            let paths = fs::read_dir(&output_parts_dir).unwrap();
+            let paths = fs::read_dir(&output_parts_dir)?;
             for path in paths {
-                let path = path.unwrap();
+                let path = path?;
                 let path = format!("{}", path.path().display());
                 let dest_file = format!("{}/part-{}.parquet", output_dir.display(), part);
                 part += 1;
                 println!("Moving {} to {}", path, dest_file);
-                fs::rename(&path, &dest_file).unwrap();
+                fs::rename(&path, &dest_file)?;
             }
+            fs::remove_dir_all(&output_dir)?;
         }
-
-        // }))
-        // .buffer_unordered(3)
-        // .map(|r| println!("finished request: {:?}", r))
-        // .collect::<Vec<_>>();
     }
 
     Ok(())
