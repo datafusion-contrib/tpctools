@@ -1,8 +1,8 @@
 [package]
 name = "tpctools"
-version = "0.1.5"
+version = "0.2.0"
 authors = ["Andy Grove <andygrove73@gmail.com>"]
-description = "Utilities for generating TPC-H and TPC-DS data sets"
+description = "Utilities for generating and converting TPC-H and TPC-DS data sets"
 homepage = "https://github.com/andygrove/tpctools/"
 repository = "https://github.com/andygrove/tpctools/"
 license = "Apache-2.0"
@@ -11,6 +11,6 @@ edition = "2018"
 [dependencies]
 structopt = { version = "0.3", default-features = false }
 async-trait = "0.1.50"
-datafusion = "12.0.0"
+datafusion = "15.0.0"
 futures = "0.3.24"
 tokio = { version = "1.0", features = ["macros", "rt", "rt-multi-thread", "sync"] }

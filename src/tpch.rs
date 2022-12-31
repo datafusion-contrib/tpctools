@@ -46,6 +46,7 @@ impl Tpc for TpcH {
         if partitions == 1 {
             let generator_path = generator_path.to_owned();
             handles.push(thread::spawn(move || {
+                println!("Generating partition 1 of 1 ...");
                 let output = Command::new("./dbgen")
                     .current_dir(generator_path)
                     .arg("-f")
@@ -59,6 +60,7 @@ impl Tpc for TpcH {
             for i in 1..=partitions {
                 let generator_path = generator_path.to_owned();
                 handles.push(thread::spawn(move || {
+                    println!("Generating partition {} of {} ...", i, partitions);
                     let output = Command::new("./dbgen")
                         .current_dir(generator_path)
                         .arg("-f")
