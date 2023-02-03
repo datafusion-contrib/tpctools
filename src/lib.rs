@@ -136,14 +136,10 @@ pub async fn convert_tbl(
 
     // build plan to read the TBL file
     let csv_filename = format!("{}", input_path.display());
-    let csv = ctx.read_csv(&csv_filename, options.clone()).await?;
-
-    // create the physical plan
-    let csv = csv.to_logical_plan()?;
-    let csv = ctx.create_physical_plan(&csv).await?;
+    let df = ctx.read_csv(&csv_filename, options.clone()).await?;
 
     match file_format {
-        "csv" => ctx.write_csv(csv, output_filename.to_string()).await?,
+        "csv" => df.write_csv(&output_filename).await?,
         "parquet" => {
             let compression = match compression {
                 "none" => Compression::UNCOMPRESSED,
@@ -164,8 +160,7 @@ pub async fn convert_tbl(
                 .set_compression(compression)
                 .build();
 
-            ctx.write_parquet(csv, output_filename.to_string(), Some(props))
-                .await?
+            df.write_parquet(&output_filename, Some(props)).await?
         }
         other => {
             return Err(DataFusionError::NotImplemented(format!(
