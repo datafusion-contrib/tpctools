@@ -12,7 +12,7 @@
 
 use std::fs;
 use std::io::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use async_trait::async_trait;
@@ -48,6 +48,7 @@ pub async fn convert_to_parquet(
     output_path: &str,
 ) -> datafusion::error::Result<()> {
     for table in benchmark.get_table_names() {
+        println!("Converting table {}", table);
         let schema = benchmark.get_schema(table);
 
         let file_ext = format!(".{}", benchmark.get_table_ext());
@@ -71,11 +72,16 @@ pub async fn convert_to_parquet(
         println!("Creating directory: {}", output_dir.display());
         fs::create_dir(&output_dir)?;
 
-        let files = fs::read_dir(path)?;
+        let x = PathBuf::from(path);
         let mut file_vec = vec![];
-        for file in files {
-            let file = file?;
-            file_vec.push(file);
+        if x.is_dir() {
+            let files = fs::read_dir(path)?;
+            for file in files {
+                let file = file?;
+                file_vec.push(file);
+            }
+        } else {
+
         }
 
         let mut part = 0;
@@ -108,7 +114,8 @@ pub async fn convert_to_parquet(
                 println!("Moving {} to {}", path, dest_file);
                 fs::rename(&path, &dest_file)?;
             }
-            fs::remove_dir_all(&output_dir)?;
+            println!("Removing {}", output_parts_dir);
+            fs::remove_dir_all(&output_parts_dir)?;
         }
     }
 
@@ -144,11 +151,11 @@ pub async fn convert_tbl(
             let compression = match compression {
                 "none" => Compression::UNCOMPRESSED,
                 "snappy" => Compression::SNAPPY,
-                "brotli" => Compression::BROTLI,
-                "gzip" => Compression::GZIP,
+                // "brotli" => Compression::BROTLI,
+                // "gzip" => Compression::GZIP,
                 "lz4" => Compression::LZ4,
                 "lz0" => Compression::LZO,
-                "zstd" => Compression::ZSTD,
+                // "zstd" => Compression::ZSTD,
                 other => {
                     return Err(DataFusionError::NotImplemented(format!(
                         "Invalid compression format: {}",

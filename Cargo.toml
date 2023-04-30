@@ -11,6 +11,6 @@ edition = "2018"
 [dependencies]
 structopt = { version = "0.3", default-features = false }
 async-trait = "0.1.50"
-datafusion = "17.0.0"
+datafusion = "23.0.0"
 futures = "0.3.24"
 tokio = { version = "1.0", features = ["macros", "rt", "rt-multi-thread", "sync"] }
