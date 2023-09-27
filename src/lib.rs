@@ -81,7 +81,6 @@ pub async fn convert_to_parquet(
                 file_vec.push(file);
             }
         } else {
-
         }
 
         let mut part = 0;
@@ -108,18 +107,41 @@ pub async fn convert_to_parquet(
             let paths = fs::read_dir(&output_parts_dir)?;
             for path in paths {
                 let path = path?;
-                let path = format!("{}", path.path().display());
+                let path_str = format!("{}", path.path().display());
                 let dest_file = format!("{}/part-{}.parquet", output_dir.display(), part);
                 part += 1;
-                println!("Moving {} to {}", path, dest_file);
-                fs::rename(&path, &dest_file)?;
+                let dest_path = Path::new(&dest_file);
+                if is_same_device(&path.path(), &dest_path)? {
+                    println!("Moving {} to {}", path_str, dest_file);
+                    fs::rename(&path.path(), &dest_file)?;
+                } else {
+                    println!("Copying {} to {}", path_str, dest_file);
+                    fs::copy(&path.path(), &dest_file)?;
+                    fs::remove_file(&path.path())?;
+                }
             }
             println!("Removing {}", output_parts_dir);
-            fs::remove_dir_all(&output_parts_dir)?;
+            fs::remove_dir_all(Path::new(&output_parts_dir))?;
         }
     }
 
     Ok(())
+}
+
+#[cfg(unix)]
+fn is_same_device(path1: &Path, path2: &Path) -> std::result::Result<bool, std::io::Error> {
+    use std::os::unix::fs::MetadataExt;
+    let meta1 = fs::metadata(path1)?;
+    let meta2 = fs::metadata(path2)?;
+    Ok(meta1.dev() == meta2.dev())
+}
+
+#[cfg(windows)]
+fn is_same_device(path1: &Path, path2: &Path) -> std::result::Result<bool, std::io::Error> {
+    use std::os::windows::fs::MetadataExt;
+    let meta1 = fs::metadata(path1)?;
+    let meta2 = fs::metadata(path2)?;
+    Ok(meta1.volume_serial_number() == meta2.volume_serial_number())
 }
 
 pub async fn convert_tbl(
