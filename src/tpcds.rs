@@ -19,7 +19,7 @@ use std::process::Command;
 use std::thread;
 use std::time::Instant;
 
-use crate::Tpc;
+use crate::{move_or_copy, Tpc};
 
 pub struct TpcDs {}
 
@@ -95,8 +95,7 @@ impl Tpc for TpcDs {
                 let filename = format!("{}/{}_{}_{}.dat", output_path, table, i, partitions);
                 let filename2 = format!("{}/part-{}.dat", output_dir, i);
                 if Path::new(&filename).exists() {
-                    println!("mv {} {}", filename, filename2);
-                    fs::rename(filename, filename2)?;
+                    move_or_copy(&Path::new(&filename), &Path::new(&filename2))?;
                 }
             }
         }

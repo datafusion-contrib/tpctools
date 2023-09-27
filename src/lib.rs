@@ -80,7 +80,6 @@ pub async fn convert_to_parquet(
                 let file = file?;
                 file_vec.push(file);
             }
-        } else {
         }
 
         let mut part = 0;
@@ -107,18 +106,10 @@ pub async fn convert_to_parquet(
             let paths = fs::read_dir(&output_parts_dir)?;
             for path in paths {
                 let path = path?;
-                let path_str = format!("{}", path.path().display());
                 let dest_file = format!("{}/part-{}.parquet", output_dir.display(), part);
                 part += 1;
                 let dest_path = Path::new(&dest_file);
-                if is_same_device(&path.path(), &dest_path)? {
-                    println!("Moving {} to {}", path_str, dest_file);
-                    fs::rename(&path.path(), &dest_file)?;
-                } else {
-                    println!("Copying {} to {}", path_str, dest_file);
-                    fs::copy(&path.path(), &dest_file)?;
-                    fs::remove_file(&path.path())?;
-                }
+                move_or_copy(&path.path(), &dest_path)?;
             }
             println!("Removing {}", output_parts_dir);
             fs::remove_dir_all(Path::new(&output_parts_dir))?;
@@ -128,11 +119,33 @@ pub async fn convert_to_parquet(
     Ok(())
 }
 
+pub(crate) fn move_or_copy(
+    source_path: &Path,
+    dest_path: &Path,
+) -> std::result::Result<(), std::io::Error> {
+    if is_same_device(&source_path, &dest_path)? {
+        println!(
+            "Moving {} to {}",
+            source_path.display(),
+            dest_path.display()
+        );
+        fs::rename(&source_path, &dest_path)
+    } else {
+        println!(
+            "Copying {} to {}",
+            source_path.display(),
+            dest_path.display()
+        );
+        fs::copy(&source_path, &dest_path)?;
+        fs::remove_file(&source_path)
+    }
+}
+
 #[cfg(unix)]
 fn is_same_device(path1: &Path, path2: &Path) -> std::result::Result<bool, std::io::Error> {
     use std::os::unix::fs::MetadataExt;
     let meta1 = fs::metadata(path1)?;
-    let meta2 = fs::metadata(path2)?;
+    let meta2 = fs::metadata(path2.parent().unwrap())?;
     Ok(meta1.dev() == meta2.dev())
 }
 
@@ -140,7 +153,7 @@ fn is_same_device(path1: &Path, path2: &Path) -> std::result::Result<bool, std::
 fn is_same_device(path1: &Path, path2: &Path) -> std::result::Result<bool, std::io::Error> {
     use std::os::windows::fs::MetadataExt;
     let meta1 = fs::metadata(path1)?;
-    let meta2 = fs::metadata(path2)?;
+    let meta2 = fs::metadata(path2.parent().unwrap())?;
     Ok(meta1.volume_serial_number() == meta2.volume_serial_number())
 }
 
