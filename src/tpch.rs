@@ -20,7 +20,7 @@ use std::time::Instant;
 use async_trait::async_trait;
 use datafusion::arrow::datatypes::{DataType, Field, Schema};
 
-use crate::Tpc;
+use crate::{move_or_copy, Tpc};
 
 pub struct TpcH {}
 
@@ -108,24 +108,21 @@ impl Tpc for TpcH {
             let filename = format!("{}/{}.tbl", generator_path, table);
             let filename2 = format!("{}/part-0.dat", output_dir);
             if Path::new(&filename).exists() {
-                println!("mv {} {}", filename, filename2);
-                fs::rename(filename, filename2)?;
+                move_or_copy(&Path::new(&filename), &Path::new(&filename2))?;
             }
 
             if partitions == 1 {
                 let filename = format!("{}/{}.tbl", generator_path, table);
                 let filename2 = format!("{}/part-0.tbl", output_dir);
                 if Path::new(&filename).exists() {
-                    println!("mv {} {}", filename, filename2);
-                    fs::rename(filename, filename2)?;
+                    move_or_copy(&Path::new(&filename), &Path::new(&filename2))?;
                 }
             } else {
                 for i in 1..=partitions {
                     let filename = format!("{}/{}.tbl.{}", generator_path, table, i);
                     let filename2 = format!("{}/part-{}.tbl", output_dir, i);
                     if Path::new(&filename).exists() {
-                        println!("mv {} {}", filename, filename2);
-                        fs::rename(filename, filename2)?;
+                        move_or_copy(&Path::new(&filename), &Path::new(&filename2))?;
                     }
                 }
             }
