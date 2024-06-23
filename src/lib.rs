@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use async_trait::async_trait;
-use datafusion::arrow::datatypes::Schema;
+use datafusion::arrow::datatypes::{DataType, Field, Schema, SchemaBuilder};
 use datafusion::error::DataFusionError;
 use datafusion::parquet::basic::Compression;
 use datafusion::parquet::file::properties::WriterProperties;
@@ -49,11 +49,15 @@ pub async fn convert_to_parquet(
 ) -> datafusion::error::Result<()> {
     for table in benchmark.get_table_names() {
         println!("Converting table {}", table);
-        let schema = benchmark.get_schema(table);
+
+        let mut schema_builder = SchemaBuilder::from(benchmark.get_schema(table).fields);
+        schema_builder.push(Field::new("__placeholder", DataType::Utf8, true));
+        let schema = schema_builder.finish();
 
         let file_ext = format!(".{}", benchmark.get_table_ext());
         let options = CsvReadOptions::new()
             .schema(&schema)
+            .has_header(false)
             .delimiter(b'|')
             .file_extension(&file_ext);
 
@@ -178,7 +182,19 @@ pub async fn convert_tbl(
 
     // build plan to read the TBL file
     let csv_filename = format!("{}", input_path.display());
-    let df = ctx.read_csv(&csv_filename, options.clone()).await?;
+    let mut df = ctx.read_csv(&csv_filename, options.clone()).await?;
+
+    let schema = df.schema();
+    // Select all apart from the padding column
+    let selection = df
+        .schema()
+        .fields()
+        .iter()
+        .take(schema.fields().len() - 1)
+        .map(|d| Expr::Column(d.qualified_column()))
+        .collect();
+
+    df = df.select(selection)?;
 
     match file_format {
         "csv" => df.write_csv(&output_filename).await?,
